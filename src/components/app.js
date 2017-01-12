@@ -138,6 +138,29 @@ export default class App extends Component {
     }.bind(this));
   }
 
+  handleSubmit = () => {
+    //write in to firebase
+    console.log('tests'+self.state.name);
+    //name fbid city
+    
+    const firebaseRef = firebase.database().ref();
+    const peopleRef = firebaseRef.child('people');
+    peopleRef.on('person_add',(snapshot)=>{
+      //call eather robot
+    });
+
+    let newPeopleRef = peopleRef.push()
+    newPeopleRef.set({
+      name:self.state.name,
+      city:self.state.city,
+      fbid:self.state.fbid
+    });
+    console.log('key:'+newPeopleRef.key);
+  }
+
+
+
+  ///
   handleChange = (e) => {
     this.setState({
       city: e.target.value
