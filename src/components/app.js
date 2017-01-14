@@ -10,8 +10,12 @@ export default class App extends Component {
       fbid: '',
       submitBtnName:'FB Login',
       city:'Tainan',
-      isSubmitted: false
+      isSubmitted: false,
+      key:''
     };
+    this.testAPI = this.testAPI.bind(this);
+    this.handleSubmit = this.handleSubmit.bind(this);
+
   }
 
   render() {
@@ -86,22 +90,22 @@ export default class App extends Component {
     // Here we run a very simple test of the Graph API after login is
     // successful.  See statusChangeCallback() for when this call is made.
     testAPI() {
+      self = this;
       console.log('Welcome!  Fetching your information.... ');
       FB.api('/me', function(response) {
-      console.log('Successful login for: ' + response.name + response.id);
-      this.setState({
-        name:response.name,
-        fbid:response.id,
-        submitBtnName:'submit',
-        isSubmitted:true
-      });
+        console.log('Successful login for: ' + response.name + response.id);
+        self.setState({
+          name:response.name,
+          fbid:response.id,
+          submitBtnName:'submit',
+          isSubmitted:true
+        });
 
-      if(this.state.isSubmitted){
-        this.handleSubmit(this);
-      }
-      document.getElementById('status').innerHTML =
-        'Thanks for logging in, ' + response.name + '!';
-      });
+        if(self.state.isSubmitted){
+          self.handleSubmit();
+        }
+        
+        });
     }
 
     // This is called with the results from from FB.getLoginStatus().
@@ -114,16 +118,16 @@ export default class App extends Component {
       // for FB.getLoginStatus().
       if (response.status === 'connected') {
         // Logged into your app and Facebook.
-        this.testAPI().bind(this);
+        this.testAPI();
       } else if (response.status === 'not_authorized') {
         // The person is logged into Facebook, but not your app.
-        document.getElementById('status').innerHTML = 'Please log ' +
-          'into this app.';
+        console.log('Please log ' +
+        'into this app.');
       } else {
         // The person is not logged into Facebook, so we're not sure if
         // they are logged into this app or not.
-        document.getElementById('status').innerHTML = 'Please log ' +
-        'into Facebook.';
+        console.log('Please log ' +
+        'into Facebook.');
       }
   }
 
@@ -140,22 +144,127 @@ export default class App extends Component {
 
   handleSubmit = () => {
     //write in to firebase
-    console.log('tests'+self.state.name);
+    console.log('tests'+this.state.name);
     //name fbid city
-    
+    const self = this;
     const firebaseRef = firebase.database().ref();
+    
     const peopleRef = firebaseRef.child('people');
-    peopleRef.on('person_add',(snapshot)=>{
-      //call eather robot
+    
+    peopleRef.on('child_added',(snapshot)=>{
+      //push weather robot to user
+      console.log('add new child', snapshot.val());
     });
 
-    let newPeopleRef = peopleRef.push()
-    newPeopleRef.set({
-      name:self.state.name,
-      city:self.state.city,
-      fbid:self.state.fbid
+    peopleRef.on('value',(snapshot)=>{
+      //call eather robot
+      const obj = snapshot.val();
+      let needUpdate = false;
+      if(obj){
+          Object.keys(obj).map(function(objectKey, index) {
+            const value = obj[objectKey];
+            if(value.fbid == self.state.fbid){
+              needUpdate = true;
+              self.setState({
+                key:objectKey
+              })
+              return;
+            }
+          });
+          if(needUpdate){//update
+            let updatePeopleRef = firebaseRef.child(`people/${self.state.key}`);
+            updatePeopleRef.update({
+              city:self.state.city
+            }).then(()=>{
+              console.log('city has changed');
+            })
+          }else{//insert
+            let newPeopleRef = peopleRef.push( {
+              name:self.state.name,
+              city:self.state.city,
+              fbid:self.state.fbid
+            }).then(()=>{
+              self.setState({
+              key:newPeopleRef.key
+              })
+              console.log('insert key:'+newPeopleRef.key);
+            });
+          }
+      }else{//insert
+        let newPeopleRef = peopleRef.push( {
+              name:self.state.name,
+              city:self.state.city,
+              fbid:self.state.fbid
+            }).then(()=>{
+              self.setState({
+              key:newPeopleRef.key
+              })
+              console.log('insert key:'+newPeopleRef.key);
+            });
+      }
+      
+      //////////
+
+
+      // if(obj){
+      //   let arr = Object.keys(obj).map(key => obj[key]);
+      //   let needUpdate = false;
+      //   arr.map(function(item){
+      //     if(item.fbid == self.state.fbid){
+      //       needUpdate = true;
+      //       return;
+      //     }
+      //   });
+      //   if(needUpdate){//update
+      //     console.log('need update');
+      //   }else{//insert
+      //     console.log('need insert');
+      //     let newPeopleRef = peopleRef.push( {
+      //       name:self.state.name,
+      //       city:self.state.city,
+      //       fbid:self.state.fbid
+      //     });
+      //     console.log('insert key:'+newPeopleRef.key);
+      //   }
+      // }else{
+      //   //insert
+      //   let newPeopleRef = peopleRef.push( {
+      //     name:self.state.name,
+      //     city:self.state.city,
+      //     fbid:self.state.fbid
+      //   }).then(()=>{
+      //     self.setState({
+      //      key:newPeopleRef.key
+      //     })
+      //     console.log('insert key:'+newPeopleRef.key);
+      //   });
+        
+      // }
+      
+        // if(item.fbid == self.state.fbid){
+        //   //update
+        //   console.log('update');
+        //   // peopleRef.update(
+        //   //   {
+        //   //     city:self.state.city
+        //   //   }
+        //   // )
+        //   return;
+        // }else{
+        //   //insert
+        //   let newPeopleRef = peopleRef.push( {
+        //     name:self.state.name,
+        //     city:self.state.city,
+        //     fbid:self.state.fbid
+        //   });
+        //   console.log('insert key:'+newPeopleRef.key);
+        //   return;
+        // }
+      
     });
-    console.log('key:'+newPeopleRef.key);
+    
+
+    
   }
 
 
